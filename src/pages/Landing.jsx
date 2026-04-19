@@ -73,6 +73,12 @@ const TECH_TILES = [
     tag: 'GPT · RAG · agenty',
   },
   {
+    icon: 'search',
+    title: 'Model dostrojony do psychologii',
+    desc: 'Własne embeddingi trenujemy na korpusie terapeutycznym — artykuły CBT, ACT, mindfulness i dzienniki emocji. AI nie improwizuje, sięga po wiedzę przefiltrowaną przez psychologów.',
+    tag: 'Fine-tuned embeddings',
+  },
+  {
     icon: 'wave',
     title: 'Głos jak prawdziwy',
     desc: 'ElevenLabs syntezuje trzy unikalne głosy (Rachel, Charlotte, Adam). Postać mówi do Ciebie — nie czytasz suchego tekstu.',
