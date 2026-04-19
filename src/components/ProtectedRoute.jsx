@@ -18,7 +18,7 @@ export default function ProtectedRoute({ children, requireAvatar = true }) {
   }
 
   if (status !== 'authenticated') {
-    return <Navigate to="/auth" replace state={{ from: location }} />;
+    return <Navigate to="/" replace state={{ from: location }} />;
   }
 
   const needsAvatar = user && (!user.avatar || user.avatar < 1);

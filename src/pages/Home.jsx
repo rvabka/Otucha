@@ -84,7 +84,7 @@ export default function Home() {
       <BackgroundAura />
 
       <div className="relative grid h-full grid-cols-1 gap-4 p-3 sm:gap-5 sm:p-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-6">
-        <aside className="hidden h-full min-h-0 lg:block">
+        <aside className="hidden h-full min-h-0 lg:block mt-3">
           <div className="flex h-full flex-col gap-5 overflow-y-auto no-scrollbar pr-1">
             <div data-tour="sidebar" className="glass flex flex-col rounded-[2.5rem] p-5">
               <Sidebar />
