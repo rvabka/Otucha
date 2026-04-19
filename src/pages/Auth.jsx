@@ -14,6 +14,79 @@ const heroBullets = [
   { icon: 'chat', title: 'Mistrz Gry', desc: 'Twój AI kompan — wysłucha, zaproponuje questa, da XP.' },
 ];
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_RE = /^[a-zA-Z0-9_.-]+$/;
+
+function validateForm(mode, form) {
+  const errors = {};
+  const username = form.username.trim();
+  if (!username) {
+    errors.username = 'Podaj nazwę użytkownika.';
+  } else if (username.length < 3) {
+    errors.username = 'Nazwa musi mieć co najmniej 3 znaki.';
+  } else if (username.length > 32) {
+    errors.username = 'Nazwa może mieć maksymalnie 32 znaki.';
+  } else if (!USERNAME_RE.test(username)) {
+    errors.username = 'Dozwolone są litery, cyfry oraz . _ -';
+  }
+
+  if (mode === 'register' && form.email) {
+    if (!EMAIL_RE.test(form.email.trim())) {
+      errors.email = 'To nie wygląda jak poprawny adres email.';
+    }
+  }
+
+  if (!form.password) {
+    errors.password = 'Wpisz hasło.';
+  } else if (mode === 'register' && form.password.length < 6) {
+    errors.password = 'Hasło musi mieć co najmniej 6 znaków.';
+  }
+
+  return errors;
+}
+
+function translateApiError(err, mode) {
+  const status = err?.status;
+  const raw = (err?.message || '').toString();
+  const lower = raw.toLowerCase();
+
+  if (status === 0 || lower.includes('failed to fetch') || lower.includes('networkerror')) {
+    return { form: 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.' };
+  }
+
+  if (mode === 'login' && (status === 401 || status === 400 || lower.includes('invalid') || lower.includes('incorrect') || lower.includes('credentials') || lower.includes('not found'))) {
+    return { form: 'Nieprawidłowa nazwa użytkownika lub hasło.' };
+  }
+
+  if (lower.includes('username') && (lower.includes('exist') || lower.includes('taken') || lower.includes('already'))) {
+    return { fields: { username: 'Ta nazwa użytkownika jest już zajęta.' } };
+  }
+  if (lower.includes('email') && (lower.includes('exist') || lower.includes('taken') || lower.includes('already'))) {
+    return { fields: { email: 'Ten email jest już używany.' } };
+  }
+  if (lower.includes('email') && lower.includes('valid')) {
+    return { fields: { email: 'To nie wygląda jak poprawny adres email.' } };
+  }
+  if (lower.includes('password') && (lower.includes('short') || lower.includes('length') || lower.includes('weak'))) {
+    return { fields: { password: 'Hasło jest za krótkie — użyj co najmniej 6 znaków.' } };
+  }
+  if (lower.includes('username') && lower.includes('valid')) {
+    return { fields: { username: 'Nazwa użytkownika ma niedozwolone znaki.' } };
+  }
+
+  if (status === 422) {
+    return { form: 'Sprawdź wpisane dane — coś jest nie tak z formatem.' };
+  }
+  if (status === 429) {
+    return { form: 'Za dużo prób. Odczekaj chwilę i spróbuj ponownie.' };
+  }
+  if (status >= 500) {
+    return { form: 'Serwer ma chwilę słabości. Spróbuj ponownie za moment.' };
+  }
+
+  return { form: 'Coś poszło nie tak. Spróbuj ponownie.' };
+}
+
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,6 +94,7 @@ export default function Auth() {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ username: '', password: '', email: '' });
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [busy, setBusy] = useState(false);
 
   if (status === 'authenticated') {
@@ -28,24 +102,52 @@ export default function Auth() {
     return <Navigate to={to} replace />;
   }
 
+  const updateField = (key, value) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (fieldErrors[key]) {
+      setFieldErrors((errs) => {
+        const next = { ...errs };
+        delete next[key];
+        return next;
+      });
+    }
+    if (error) setError(null);
+  };
+
+  const switchMode = (next) => {
+    setMode(next);
+    setError(null);
+    setFieldErrors({});
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    const clientErrors = validateForm(mode, form);
+    if (Object.keys(clientErrors).length > 0) {
+      setFieldErrors(clientErrors);
+      return;
+    }
+    setFieldErrors({});
+
     setBusy(true);
     try {
       if (mode === 'login') {
-        await login({ username: form.username, password: form.password });
+        await login({ username: form.username.trim(), password: form.password });
       } else {
         await register({
-          username: form.username,
+          username: form.username.trim(),
           password: form.password,
-          email: form.email || undefined,
+          email: form.email ? form.email.trim() : undefined,
         });
       }
       playSound('heart');
       navigate('/app', { replace: true });
     } catch (err) {
-      setError(err.message || 'Coś poszło nie tak. Spróbuj ponownie.');
+      const translated = translateApiError(err, mode);
+      if (translated.fields) setFieldErrors(translated.fields);
+      if (translated.form) setError(translated.form);
     } finally {
       setBusy(false);
     }
@@ -85,24 +187,23 @@ export default function Auth() {
             </div>
 
             <div className="mb-6 grid grid-cols-2 gap-1 rounded-2xl bg-white/45 p-1 ring-1 ring-white/60">
-              <TabButton active={mode === 'login'} onClick={() => setMode('login')}>
+              <TabButton active={mode === 'login'} onClick={() => switchMode('login')}>
                 Logowanie
               </TabButton>
-              <TabButton active={mode === 'register'} onClick={() => setMode('register')}>
+              <TabButton active={mode === 'register'} onClick={() => switchMode('register')}>
                 Rejestracja
               </TabButton>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-4">
+            <form onSubmit={onSubmit} className="space-y-4" noValidate>
               <AuthInput
                 icon="user"
                 label="Nazwa użytkownika"
                 placeholder="np. wojownik_spokoju"
                 autoComplete={mode === 'login' ? 'username' : 'new-username'}
                 value={form.username}
-                onChange={(v) => setForm((f) => ({ ...f, username: v }))}
-                required
-                minLength={3}
+                onChange={(v) => updateField('username', v)}
+                error={fieldErrors.username}
               />
               {mode === 'register' && (
                 <AuthInput
@@ -112,8 +213,9 @@ export default function Auth() {
                   placeholder="ty@przyklad.pl"
                   autoComplete="email"
                   value={form.email}
-                  onChange={(v) => setForm((f) => ({ ...f, email: v }))}
+                  onChange={(v) => updateField('email', v)}
                   hint="Pomoże odzyskać konto — możesz pominąć."
+                  error={fieldErrors.email}
                 />
               )}
               <AuthInput
@@ -123,10 +225,9 @@ export default function Auth() {
                 placeholder="••••••••"
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 value={form.password}
-                onChange={(v) => setForm((f) => ({ ...f, password: v }))}
-                required
-                minLength={mode === 'register' ? 6 : undefined}
+                onChange={(v) => updateField('password', v)}
                 togglePassword
+                error={fieldErrors.password}
               />
 
               {error && (
