@@ -3,6 +3,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCoverflow, Pagination, Keyboard, Mousewheel } from 'swiper/modules';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CHARACTERS } from '../data/characters';
+import { playSound } from '../lib/sound';
 import 'swiper/css';
 import 'swiper/css/effect-coverflow';
 import 'swiper/css/pagination';
@@ -88,7 +89,10 @@ export default function CharacterSwiper({
           mousewheel={{ forceToAxis: true, sensitivity: 0.8 }}
           pagination={{ clickable: true, dynamicBullets: true }}
           onSwiper={(s) => (swiperRef.current = s)}
-          onSlideChange={(s) => setActiveIndex(s.activeIndex)}
+          onSlideChange={(s) => {
+            setActiveIndex(s.activeIndex);
+            playSound('pop');
+          }}
           className="!overflow-visible h-full w-full"
         >
           {CHARACTERS.map((char, i) => (
@@ -99,11 +103,14 @@ export default function CharacterSwiper({
               <CharacterCard
                 char={char}
                 isActive={i === activeIndex}
-                onTap={() =>
-                  i === activeIndex
-                    ? onConfirm?.(char)
-                    : swiperRef.current?.slideTo(i)
-                }
+                onTap={() => {
+                  if (i === activeIndex) {
+                    playSound('select');
+                    onConfirm?.(char);
+                  } else {
+                    swiperRef.current?.slideTo(i);
+                  }
+                }}
               />
             </SwiperSlide>
           ))}
@@ -130,7 +137,10 @@ export default function CharacterSwiper({
           </div>
 
           <button
-            onClick={() => onConfirm?.(active)}
+            onClick={() => {
+              playSound('select');
+              onConfirm?.(active);
+            }}
             className="group relative overflow-hidden rounded-full px-9 py-3.5 font-display text-base font-semibold text-white transition-transform hover:scale-105 active:scale-95"
             style={{
               background:

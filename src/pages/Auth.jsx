@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import AuthInput from '../components/AuthInput';
 import { useAuth } from '../context/AuthContext';
 import { fetchGoogleAuthUrl, API_URL } from '../api/auth';
+import { playSound } from '../lib/sound';
 
 const heroBullets = [
   { icon: 'heart', title: 'Dziennik emocji', desc: 'Zapisuj nastrój, odkrywaj wzorce i nagradzaj się za konsekwencję.' },
@@ -41,6 +42,7 @@ export default function Auth() {
           email: form.email || undefined,
         });
       }
+      playSound('heart');
       navigate('/app', { replace: true });
     } catch (err) {
       setError(err.message || 'Coś poszło nie tak. Spróbuj ponownie.');

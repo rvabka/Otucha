@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import GlassPanel from './GlassPanel';
 import { getJournal, createJournalEntry, deleteJournalEntry, updateJournalEntry } from '../api/auth';
+import { playSound } from '../lib/sound';
 
 const MOODS = [
   { id: 'happy', emoji: '😊', label: 'Radosny' },
@@ -59,6 +60,7 @@ export default function JournalModal({ onClose, onChanged }) {
       });
       setEntries((prev) => [entry, ...prev]);
       await onChanged?.();
+      playSound('chime');
       setTitle('');
       setContent('');
       setMood(null);
@@ -132,7 +134,10 @@ export default function JournalModal({ onClose, onChanged }) {
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setMood(mood === m.id ? null : m.id)}
+                      onClick={() => {
+                        setMood(mood === m.id ? null : m.id);
+                        playSound('pop');
+                      }}
                       className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
                         mood === m.id
                           ? 'bg-rpg-quest text-white shadow-glow'

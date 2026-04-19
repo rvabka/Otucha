@@ -5,6 +5,7 @@ import GlassPanel from '../components/GlassPanel';
 import Icon from '../components/Icon';
 import { avatars } from '../data/avatars';
 import { useAuth } from '../context/AuthContext';
+import { playSound } from '../lib/sound';
 
 const toneBg = {
   sky: 'from-aura-sky/65 to-white/30',
@@ -26,6 +27,7 @@ export default function ChooseAvatar() {
     setError(null);
     try {
       await updateAvatar(selected);
+      playSound('success');
       navigate('/app', { replace: true });
     } catch (err) {
       setError(err.message || 'Nie udało się zapisać. Spróbuj ponownie.');
@@ -81,7 +83,10 @@ export default function ChooseAvatar() {
                 <button
                   key={a.id}
                   type="button"
-                  onClick={() => setSelected(a.id)}
+                  onClick={() => {
+                    setSelected(a.id);
+                    playSound('pop');
+                  }}
                   className={`group relative overflow-hidden rounded-3xl p-3 text-left transition [transform:translateZ(0)] ${
                     active
                       ? 'ring-2 ring-rpg-quest shadow-[0_20px_50px_-20px_rgba(124,109,245,0.8)]'

@@ -6,6 +6,7 @@ import Icon from './Icon';
 import ScreenCelebration from './ScreenCelebration';
 import { claimSmileReward } from '../api/smile';
 import { useAuth } from '../context/AuthContext';
+import { playSound } from '../lib/sound';
 
 const SMILE_THRESHOLD = 0.45;
 const REQUIRED_SECONDS = 3;
@@ -24,6 +25,7 @@ export default function SmileDetector({ onClose }) {
   const landmarkerRef = useRef(null);
   const rafRef = useRef(null);
   const smileStartRef = useRef(null);
+  const lastTickRef = useRef(0);
 
   const { refresh } = useAuth();
 
@@ -122,10 +124,18 @@ export default function SmileDetector({ onClose }) {
 
     const now = Date.now();
     if (smiling) {
-      if (!smileStartRef.current) smileStartRef.current = now;
+      if (!smileStartRef.current) {
+        smileStartRef.current = now;
+        lastTickRef.current = 0;
+      }
       const elapsed = (now - smileStartRef.current) / 1000;
       const p = Math.min(elapsed / REQUIRED_SECONDS, 1);
       setProgress(p);
+      const tickSec = Math.floor(elapsed);
+      if (tickSec > lastTickRef.current && tickSec <= REQUIRED_SECONDS) {
+        lastTickRef.current = tickSec;
+        playSound('tick');
+      }
       if (p >= 1) {
         setDone(true);
         setProgress(1);
@@ -137,6 +147,7 @@ export default function SmileDetector({ onClose }) {
       }
     } else {
       smileStartRef.current = null;
+      lastTickRef.current = 0;
       setProgress((prev) => Math.max(prev - 0.02, 0));
     }
     rafRef.current = requestAnimationFrame(detect);

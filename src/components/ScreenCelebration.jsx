@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { playSound } from '../lib/sound';
 
 const CONFETTI_COLORS = [
   '#7c6df5', '#c48cff', '#ff8fa3', '#f5c76a',
@@ -124,6 +125,7 @@ export default function ScreenCelebration({ exp }) {
 
   useEffect(() => {
     setShow(true);
+    playSound('success');
     document.body.style.animation = 'screenShake 0.4s ease-in-out';
     const timer = setTimeout(() => {
       document.body.style.animation = '';

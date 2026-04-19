@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { playSound } from '../lib/sound';
 
 const CONFETTI_COLORS = [
   '#7c6df5', '#c48cff', '#ff8fa3', '#f5c76a',
@@ -106,6 +107,7 @@ export default function LevelUpCelebration({ newLevel, onDone }) {
 
   useEffect(() => {
     setShow(true);
+    playSound('levelUp');
     document.body.style.animation = 'screenShake 0.5s ease-in-out';
     const timer = setTimeout(() => {
       document.body.style.animation = '';

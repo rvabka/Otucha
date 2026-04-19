@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { playSound } from '../lib/sound';
 
 const CONFETTI_COLORS = [
   '#7c6df5', '#c48cff', '#ff8fa3', '#f5c76a',
@@ -12,9 +13,10 @@ const LABELS = ['-1 AURA', '-', '+1 AURA', '+2 AURA', '+3 AURA'];
 
 export default function EmojiBurst({ emoji, origin, moodIndex = 2, onDone }) {
   useEffect(() => {
+    playSound(moodIndex >= 2 ? 'sparkle' : 'pop');
     const t = setTimeout(() => onDone?.(), 1900);
     return () => clearTimeout(t);
-  }, [onDone]);
+  }, [onDone, moodIndex]);
 
   const confetti = useMemo(
     () =>
