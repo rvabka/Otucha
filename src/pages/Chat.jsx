@@ -73,6 +73,7 @@ function Chat() {
   const assistantMessageIdRef = useRef(null);
   const messageIdRef = useRef(0);
   const audioRef = useRef(null);
+  const ttsAbortRef = useRef(null);
   const listeningRef = useRef(false);
   const startListeningRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -101,30 +102,106 @@ function Chat() {
     mediaRecorderRef.current = null;
     listeningRef.current = false;
     setIsListening(false);
+
+    if (ttsAbortRef.current) { try { ttsAbortRef.current.abort(); } catch {} }
+    if (audioRef.current) {
+      try { audioRef.current.pause(); } catch {}
+      try { URL.revokeObjectURL(audioRef.current.src); } catch {}
+      audioRef.current = null;
+    }
+
+    const abort = new AbortController();
+    ttsAbortRef.current = abort;
+
+    const canStream =
+      typeof window !== 'undefined' &&
+      'MediaSource' in window &&
+      window.MediaSource.isTypeSupported('audio/mpeg');
+
     try {
       setIsSpeaking(true);
       const res = await fetch(`${API_BASE}/rag/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: cleanText, agent_id: selectedAgent }),
+        signal: abort.signal,
       });
       if (!res.ok) throw new Error(`TTS failed: ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        URL.revokeObjectURL(audioRef.current.src);
+
+      if (!canStream || !res.body) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
+        audio.onerror = () => setIsSpeaking(false);
+        await audio.play();
+        return;
       }
-      const audio = new Audio(url);
+
+      const mediaSource = new MediaSource();
+      const mediaUrl = URL.createObjectURL(mediaSource);
+      const audio = new Audio();
+      audio.src = mediaUrl;
+      audio.preload = 'auto';
       audioRef.current = audio;
-      audio.onended = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(url);
-      };
+      audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(mediaUrl); };
       audio.onerror = () => setIsSpeaking(false);
-      await audio.play();
+
+      mediaSource.addEventListener('sourceopen', () => {
+        let sourceBuffer;
+        try {
+          sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+        } catch (e) {
+          console.error('[TTS] addSourceBuffer failed', e);
+          setIsSpeaking(false);
+          return;
+        }
+
+        const queue = [];
+        let streamEnded = false;
+        let playStarted = false;
+
+        const flush = () => {
+          if (sourceBuffer.updating || queue.length === 0) return;
+          try {
+            sourceBuffer.appendBuffer(queue.shift());
+          } catch (e) {
+            console.warn('[TTS] appendBuffer', e);
+          }
+        };
+
+        sourceBuffer.addEventListener('updateend', () => {
+          if (!playStarted) {
+            playStarted = true;
+            audio.play().catch((e) => console.warn('[TTS] play', e));
+          }
+          if (queue.length > 0) {
+            flush();
+          } else if (streamEnded && mediaSource.readyState === 'open') {
+            try { mediaSource.endOfStream(); } catch {}
+          }
+        });
+
+        (async () => {
+          const reader = res.body.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) { streamEnded = true; break; }
+              queue.push(value);
+              flush();
+            }
+            if (!sourceBuffer.updating && queue.length === 0 && mediaSource.readyState === 'open') {
+              try { mediaSource.endOfStream(); } catch {}
+            }
+          } catch (err) {
+            if (err.name !== 'AbortError') console.error('[TTS] read error', err);
+          }
+        })();
+      }, { once: true });
     } catch (err) {
-      console.error('[TTS] Error:', err);
+      if (err.name !== 'AbortError') console.error('[TTS] Error:', err);
       setIsSpeaking(false);
     }
   }, [voiceEnabled, selectedAgent]);
@@ -283,6 +360,23 @@ function Chat() {
     return () => stopListening();
   }, [chatEnded, stopListening]);
 
+  useEffect(() => {
+    return () => {
+      if (ttsAbortRef.current) { try { ttsAbortRef.current.abort(); } catch {} }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        try { URL.revokeObjectURL(audioRef.current.src); } catch {}
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+      setIsSpeaking(false);
+      if (wsRef.current) {
+        try { wsRef.current.close(); } catch {}
+        wsRef.current = null;
+      }
+    };
+  }, []);
+
   const sendMessage = (e) => {
     e.preventDefault();
     const trimmed = input.trim();
@@ -295,6 +389,7 @@ function Chat() {
   };
 
   const handleConfirmCharacter = (char) => {
+    if (ttsAbortRef.current) { try { ttsAbortRef.current.abort(); } catch {} }
     if (audioRef.current) { audioRef.current.pause(); }
     setIsSpeaking(false);
     stopListening();
