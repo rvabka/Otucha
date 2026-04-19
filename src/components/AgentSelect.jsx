@@ -5,7 +5,7 @@ import GlassPanel from './GlassPanel';
 import Icon from './Icon';
 import { getCharacter } from '../data/characters';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://vps-5af91b90.vps.ovh.net';
 
 const AGENT_ORDER = ['mindfulness', 'mindbuddy', 'journal_companion'];
 const sortAgents = (list) =>

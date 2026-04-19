@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://vps-5af91b90.vps.ovh.net';
 
 const TOKEN_KEY = 'hp.access_token';
 const REFRESH_KEY = 'hp.refresh_token';

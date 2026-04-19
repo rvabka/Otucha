@@ -9,7 +9,7 @@ import CharacterStage from '../components/CharacterStage';
 import { CHARACTERS, getCharacter } from '../data/characters';
 import { tokens } from '../api/client';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://vps-5af91b90.vps.ovh.net';
 const WS_BASE = API_BASE.replace(/^http/, 'ws');
 
 const CRISIS_PATTERNS = [
